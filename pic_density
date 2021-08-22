@@ -1,0 +1,178 @@
+#!/bin/bash
+######################################################################
+#  ● 説明
+#  千徳先生の1D-Pic code の結果を gnuplot を使って
+#   カレントディレクトリーにあるすべての
+#   density.XXXXXX の電子密度とイオン密度のデータをグラフにするスクリプト
+#   アニメーションも作成する(アニメーションファイルは、Safari で表示される．また，パワポに貼り付けることができる）
+#
+#   生成されるファイルは，density.dvi と density.pdf と animation_density.gif
+#
+#  使い方
+#  > pic_density (return) とするだけ
+#  ● オプション(縦横軸の値は，与えないときには gnuplot におまかせになります)
+#  -f 横軸の始まりの時間
+#  -t 横軸の終わりの時間
+#  -u 縦軸の最大値
+#  -b 縦軸の最小値
+#  -s 1 ページのグラフの数(1,2,6) デフォルトは 1．
+#  -h ヘルプ
+#  -v バージョン表示
+#
+#  code name : pic_density
+#
+#  必要なファイル（ソフトウエア)
+#  awk, gnuplot,  platex, dvipdfmx, convert
+#  shell : bash
+#
+#  coded by N. Yugami
+#
+######################################################################
+## option 処理
+while getopts ':f:t:u:b:s:xhv' opt; do
+      case "$opt" in
+      f ) xfrom="$OPTARG" ;;
+      t ) xto="$OPTARG" ;;
+      u ) ymax="$OPTARG" ;;
+      b ) ymin="$OPTARG" ;;
+      s ) size="$OPTARG" ;;
+      v ) echo "pic_density for Dr.Sentoku's 1Dpic code version 1.1" > /dev/stderr
+       exit 1 ;;
+      h | \? ) cat << EOB > /dev/stderr
+Usage: pic_density [-f from_time] [-t end_time] [-b y_min] [-u y_max] [-s(1,2,6)]
+              [hv]
+  -f: 横軸の始まりの時間
+  -t: 横軸の終りの時間
+  -u: 縦軸の最大値
+  -b: 縦軸の最小値
+  -s: 1 ページのグラフの数 (1, 2, 6)
+  -h: help
+  -v: バージョン表示
+イオン密度と電子密度を表示します．
+生成されるファイルは、 density.pdf と animation_density.gif ．
+gif は、Safari で表示されます．
+EOB
+      exit 1 ;;
+      esac
+done
+
+
+shift $((OPTIND -1))
+
+
+# ゴミファイルの消去
+rm *.eps
+rm *.png
+
+# gnuplot がインストールされているかのチェック
+gnuplot -h > /dev/null
+if [ $? -ne 0 ]; then
+# $? 直前実行したコマンドの終了値 (0 は成功、1は失敗)
+    echo '実行には gnuplot のインストールが必要です'
+    exit
+# else
+#    echo OK
+fi
+
+
+## ここから main loop.
+## 変数 j にはファイル名が入る．
+for j in density.[0-9]*[0-9] ; do
+
+# 1列目の時間の値を取得．(2行目の第一列目のデータを変数 time に格納)
+time=`awk 'NR==2{print $1}' $j`
+
+## gnuplot 用のスクリプト(plot_density.gp) の作成スタート
+
+  ## グラフはほぼ正方形に．
+echo "set size square" > plot_density.gp
+  ## x軸の範囲
+## xfrom と xto のどちからが与えられたとき．
+if [ -n "$xfrom" -o -n "$xto" ]; then
+echo "set xrange[$xfrom: $xto ]" >> plot_density.gp
+fi
+## y 軸の範囲
+## ymin と ymax のどちからが与えられたとき．
+if [ -n "$ymin" -o -n "$ymax" ]; then
+echo "set yrange[$ymin: $ymax]" >> plot_density.gp
+else
+echo "set yrange[0:]" >> plot_density.gp
+fi
+## eps, png, obj(tgif) の出力
+cat <<EOF >> plot_density.gp
+    set title 'time=$time'
+    set xlabel 'x'
+    set ylabel 'density'
+    set term postscript eps color 22
+    set output '$j.eps'
+# plot both electron and ion density
+    plot '$j' u 2: 3 title "n_i" w lines, '$j' u 2: 4 title "n_e" w lines
+# plot only electron density
+#    plot '$j' u 2: 4 title "n_e" w lines
+# plot only ion density
+#plot '$j' u 2: 3 title "n_i" w lines
+#    set term tgif
+#    set output '$j.obj'
+#    replot
+    set term png
+    set output '$j.png'
+    replot
+EOF
+## gnuplot 用のスクリプト作成終了
+# gnuplot の実行
+    gnuplot plot_density.gp
+done
+
+
+###############################################################
+#
+# 処理 5
+#
+# TeX file の作成
+#
+###############################################################
+filename='density'
+
+cat <<EOF > $filename.tex
+\documentclass[a4paper,12pt]{article}
+\usepackage[dvipdfmx]{color,graphicx}
+\markboth{\jobname}{\jobname}
+\setlength{\textheight    }{246mm}
+\setlength{\textwidth     }{165mm}
+\setlength{\footskip      }{  -2zh}
+\setlength{\oddsidemargin }{  -2zh}
+\renewcommand{\baselinestretch}{1.1}
+\begin{document}
+\noindent
+EOF
+
+## grapsh size の判定．1, 2, 6 は，1 pageあたりのグラフ数．デフォルトは 1
+if [ "$size" = 1 ]; then
+    scale=1.5
+elif [ "$size" =  2 ]; then
+    scale=1.3
+elif [ "$size" = 6 ]; then
+    scale=0.7
+else
+    scale=1.5
+fi
+
+## グラフの表示
+## デフォルトは，scalebox=1.5(1 graph/ page)，scalebox=1.3(2 graph/ page)， scalebox=0.7(6 graph/ page)
+for j in density*.eps ; do
+    echo "\\scalebox{$scale}{\\includegraphics{$j}}" >> $filename.tex
+done
+
+# $filename.tex file の作成終了．
+echo "\\end{document}" >> $filename.tex
+
+# tex のコンパイル(latex2eが必要)
+platex $filename.tex
+# animation gif の作成
+convert -delay 0 -loop 0 density*.png animation_density.gif
+# pdf file の作成(dvipdfmx が必要)
+dvipdfmx $filename.dvi
+# pdf file の表示
+open $filename.pdf  &
+# Safari の決め打ち for only Mac
+open -a Safari animation_density.gif
