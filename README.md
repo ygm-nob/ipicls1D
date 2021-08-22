@@ -1,8 +1,14 @@
 # ipicls1D
+**pic_density**
 1次元粒子コード ipicls1d が出力する電子・イオン密度に関するデータをグラフ化するスクリプト．
-awk, gnuplot,  platex, dvipdfmx, convert(imagemagick) が必要．
+awk, gnuplot,  platex, dvipdfmx, convert(imagemagick) が必要．  
 
-Pathの通ったところに保存し、chmod +x pic_density で実行許可を与え、計算結果が格納されているディレクトリで実行する．
+convertは、homebrew で、brew install imagimagick でインストールできる．
+
+
+Pathの通ったところに保存し、  
+chmod +x pic_density   
+で実行許可を与え、計算結果が格納されているディレクトリで実行する．
 
 オプション  -f, -t, -b, -u, -s が設定されていて、  
 -f : 横軸の始まりの値を指定  
