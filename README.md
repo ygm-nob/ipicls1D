@@ -7,7 +7,7 @@ convertは、homebrew で、brew install imagimagick でインストールでき
 
 
 PATH の通ったところに保存し、  
-chmod +x pic_density   
+\> chmod +x pic_density   
 で実行許可を与え、計算結果が格納されているディレクトリで実行する．
 
 オプション  -f, -t, -b, -u, -s が設定されていて、  
