@@ -6,7 +6,7 @@ awk, gnuplot,  platex, dvipdfmx, convert(imagemagick) が必要．
 convertは、homebrew で、brew install imagimagick でインストールできる．
 
 
-PATH の通ったところに保存し、  
+このスクリプトを PATH の通ったところに保存し、  
 \> chmod +x pic_density   
 で実行許可を与え、計算結果が格納されているディレクトリで実行する．
 
