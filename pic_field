@@ -1,0 +1,120 @@
+#!/bin/bash
+######################################################################
+#
+#  千徳先生の1D-Pic code の結果をgnuplotを使って
+#   field_.XXXXXX を横：空間、縦：Ex, Ey, Ez, By, Bz, Jx, Jy, Jz のグラフを作るスクリプト
+#
+#  code name : pic_field
+#
+#  require : awk, gnuplot,  platex, preview
+#  shell : bash
+#
+#  coded by N. Yugami
+#
+######################################################################
+## option 処理
+while getopts ':f:t:u:b:s:xhv' opt; do
+      case "$opt" in
+      f ) xfrom="$OPTARG" ;;
+      t ) xto="$OPTARG" ;;
+      u ) ymax="$OPTARG" ;;
+      b ) ymin="$OPTARG" ;;
+      s ) size="$OPTARG" ;;
+      v ) echo "pic_field for Dr.sentoku's 1Dpic code version 1.0" > /dev/stderr 
+       exit 1 ;;
+      h | \? ) cat << EOB > /dev/stderr
+Usage: pic_field [-f from_time] [-t end_time] [-b y_min] [-u y_max] [-s(1,2,6)] 
+              [hv]
+  -f: 横軸の始まりの時間
+  -t: 横軸の終りの時間 
+  -u: 縦軸の最大値
+  -b: 縦軸の最小値
+  -s: 1ページのグラフの数 (1, 2, 6)
+  -h: help
+  -v: バージョン表示
+表示するグラフが多すぎるので無意味．
+EOB
+      exit 1 ;;
+      esac
+done
+
+shift $((OPTIND -1))
+
+for j in field_[0-9]*[0-9] ; do
+
+# 1行目 3 列の時間の値を取得．
+      time=`awk 'NR==1{print $3}' $j`
+#グラフはほぼ正方形に．
+      echo "set size square" > plot_field.gp
+## x軸の範囲
+## xfrom と xto のどちからが与えられたとき．
+      if [ -n "$xfrom" -o -n "$xto" ]; then
+             echo "set xrange[$xfrom: $xto ]" >> plot_field.gp
+      fi
+## y 軸の範囲
+## ymin と ymax のどちからが与えられたとき．
+      if [ -n "$ymin" -o -n "$ymax" ]; then
+             echo "set yrange[$ymin: $ymax]" >> plot_field.gp
+      fi
+## eps, png, obj(tgif) の出力
+cat <<EOF >> plot_field.gp
+    set title 'time=$time'
+    set term postscript eps color 22
+    set output '$j.eps'
+    plot '$j' u 1: 2 title "Ex" w lines, '$j' u 1: 3 title "Ey" w lines, '$j' u 1: 4 title "Ez" w lines, '$j' u 1: 5 title "By" w lines, '$j' u 1: 6 title "Bz" w lines, '$j' u 1: 7 title "Jx" w lines, '$j' u 1: 8 title "Jy" w lines, '$j' u 1: 9 title "Jz" w lines
+EOF
+## gnuplot 用のスクリプト作成終了
+# gnuplot の実行
+    gnuplot plot_field.gp
+done
+
+
+###############################################################
+#
+# 処理 5
+#
+# TeX file の作成
+#
+###############################################################
+filename='field'
+
+cat <<EOF > $filename.tex
+\documentclass[a4paper,12pt]{article}
+\usepackage[dvipdfmx]{color,graphicx}
+\markboth{\jobname}{\jobname}
+\setlength{\textheight    }{246mm}
+\setlength{\textwidth     }{165mm}
+\setlength{\footskip      }{  -2zh}
+\setlength{\oddsidemargin }{  -2zh}
+\renewcommand{\baselinestretch}{1.1}
+\begin{document}
+\noindent
+EOF
+
+## grapsh size の判定．1, 2, 6 は，1pageあたりのグラフ数．
+if [ "$size" = 1 ]; then
+    scale=1.5
+elif [ "$size" =  2 ]; then
+    scale=1.3
+elif [ "$size" = 6 ]; then
+    scale=0.7
+else
+    scale=1.5
+fi
+
+## グラフの表示 
+## デフォルトは，scalebox=1.5(1 graph/ page)，scalebox=1.3(2 graph/ page)， scalebox=0.7(6 graph/ page)
+for j in field*.eps ; do 
+    echo "\\scalebox{$scale}{\\includegraphics{$j}}" >> $filename.tex
+done
+
+# $filename.tex file の作成終了．
+echo "\\end{document}" >> $filename.tex
+
+# tex のコンパイル(latex2eが必要)
+platex $filename.tex
+# pdf file の作成(dvipdfmx が必要)
+dvipdfmx $filename.dvi
+
+# pdf  file の表示
+open $filename.pdf  &
